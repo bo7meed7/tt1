@@ -161,6 +161,7 @@ def find_substitute():
         
         available_slots = Slot.query.join(Teacher).filter(
             Teacher.user_id == current_user.id,
+            Teacher.is_excluded == False,
             Slot.day_of_week == day,
             Slot.period_number == period,
             Slot.has_lesson == False
@@ -170,14 +171,18 @@ def find_substitute():
         for slot in available_slots:
             teacher = slot.teacher
             
+            # Skip excluded teachers
+            if getattr(teacher, 'is_excluded', False):
+                continue
+            
             # 1. Check if teacher has any lessons at all in the week
             # We can use the total_periods field if reliable, or count slots
             # Let's count slots to be safe and dynamic
             total_weekly_lessons = Slot.query.filter_by(teacher_id=teacher.id, has_lesson=True).count()
             
-            # Filter removed as per user request to show all available teachers
-            # if total_weekly_lessons == 0:
-            #    continue 
+            # Skip teachers with zero weekly load
+            if total_weekly_lessons == 0:
+                continue
             
             # 2. Calculate daily load for sorting
             daily_load = Slot.query.filter_by(
@@ -255,85 +260,9 @@ def delete_log(id):
     flash('تم حذف المناوبة بنجاح', 'success')
     return redirect(url_for('log'))
 
-@app.route('/manage_teachers')
-@login_required
-def manage_teachers():
-    teachers = Teacher.query.filter_by(user_id=current_user.id).order_by(Teacher.name).all()
-    return render_template('manage_teachers.html', teachers=teachers)
 
-@app.route('/teachers/add', methods=['POST'])
-@login_required
-def add_teacher():
-    name = request.form.get('name')
-    subject = request.form.get('subject')
-    
-    if name:
-        teacher = Teacher(name=name, subject=subject, user_id=current_user.id)
-        db.session.add(teacher)
-        db.session.commit()
-        flash('تم إضافة المعلم بنجاح', 'success')
-    
-    return redirect(url_for('manage_teachers'))
 
-@app.route('/teachers/toggle_exclude/<int:id>', methods=['POST'])
-@login_required
-def toggle_exclude_teacher(id):
-    teacher = Teacher.query.get_or_404(id)
-    if teacher.user_id != current_user.id:
-        flash('Unauthorized', 'danger')
-        return redirect(url_for('manage_teachers'))
-        
-    # Check if is_excluded exists (it should if models updated)
-    if not hasattr(teacher, 'is_excluded'):
-        # Fallback if migration not done properly, though we updated models.py
-        pass 
-    else:
-        teacher.is_excluded = not teacher.is_excluded
-        db.session.commit()
-        status = "استبعاد" if teacher.is_excluded else "تضمين"
-        flash(f'تم {status} المعلم {teacher.name} بنجاح', 'success')
-        
-    return redirect(url_for('manage_teachers'))
 
-@app.route('/manage_teachers')
-@login_required
-def manage_teachers():
-    teachers = Teacher.query.filter_by(user_id=current_user.id).order_by(Teacher.name).all()
-    return render_template('manage_teachers.html', teachers=teachers)
-
-@app.route('/teachers/add', methods=['POST'])
-@login_required
-def add_teacher():
-    name = request.form.get('name')
-    subject = request.form.get('subject')
-    
-    if name:
-        teacher = Teacher(name=name, subject=subject, user_id=current_user.id)
-        db.session.add(teacher)
-        db.session.commit()
-        flash('تم إضافة المعلم بنجاح', 'success')
-    
-    return redirect(url_for('manage_teachers'))
-
-@app.route('/teachers/toggle_exclude/<int:id>', methods=['POST'])
-@login_required
-def toggle_exclude_teacher(id):
-    teacher = Teacher.query.get_or_404(id)
-    if teacher.user_id != current_user.id:
-        flash('Unauthorized', 'danger')
-        return redirect(url_for('manage_teachers'))
-        
-    # Check if is_excluded exists (it should if models updated)
-    if not hasattr(teacher, 'is_excluded'):
-        # Fallback if migration not done properly, though we updated models.py
-        pass 
-    else:
-        teacher.is_excluded = not teacher.is_excluded
-        db.session.commit()
-        status = "استبعاد" if teacher.is_excluded else "تضمين"
-        flash(f'تم {status} المعلم {teacher.name} بنجاح', 'success')
-        
-    return redirect(url_for('manage_teachers'))
 
 @app.route('/manage_teachers')
 @login_required
