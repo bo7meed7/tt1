@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header bg-light">
+        <h4 class="mb-0 fw-bold">البحث عن معلم بديل</h4>
+    </div>
+    <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('find_substitute') }}">
+            <div class="mb-4">
+                <label for="teacher_id" class="form-label fw-bold">المعلم الأصلي (الغائب)</label>
+                <select class="form-select form-select-lg" id="teacher_id" name="teacher_id" required>
+                    <option value="" selected disabled>اختر المعلم...</option>
+                    {% for teacher in teachers %}
+                    <option value="{{ teacher.id }}" {% if selected and selected.teacher_id == teacher.id %}selected{% endif %}>
+                        {{ teacher.name }} ({{ teacher.subject }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <label for="day" class="form-label fw-bold">اليوم</label>
+                    <select class="form-select form-select-lg" id="day" name="day" required>
+                        <option value="" selected disabled>اختر اليوم...</option>
+                        {% for d in days %}
+                        <option value="{{ d }}" {% if selected and selected.day == d %}selected{% endif %}>{{ d }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <label for="period" class="form-label fw-bold">الحصة</label>
+                    <select class="form-select form-select-lg" id="period" name="period" required>
+                        <option value="" selected disabled>اختر الحصة...</option>
+                        {% for p in periods %}
+                        <option value="{{ p }}" {% if selected and selected.period == p %}selected{% endif %}>الحصة {{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="d-grid mt-2">
+                <button type="submit" class="btn btn-primary btn-lg-custom">البحث عن المعلمين المتاحين</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-primary">إدارة المعلمين</h2>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+        + إضافة معلم
+    </button>
+</div>
+
+<!-- Add Teacher Modal -->
+<div class="modal fade" id="addTeacherModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">إضافة معلم جديد</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('add_teacher') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">اسم المعلم</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">المادة (اختياري)</label>
+                        <input type="text" class="form-control" id="subject" name="subject">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="py-3 px-3">اسم المعلم</th>
+                        <th class="py-3 px-3">المادة</th>
+                        <th class="py-3 px-3">نصاب الحصص</th>
+                        <th class="py-3 px-3">الحالة</th>
+                        <th class="py-3 px-3">إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for teacher in teachers %}
+                    <tr class="{% if teacher.is_excluded %}table-secondary{% endif %}">
+                        <td class="px-3 fw-bold">{{ teacher.name }}</td>
+                        <td class="px-3">{{ teacher.subject or '-' }}</td>
+                        <td class="px-3">{{ teacher.total_periods }}</td>
+                        <td class="px-3">
+                            {% if teacher.is_excluded %}
+                            <span class="badge bg-danger">مستبعد</span>
+                            {% else %}
+                            <span class="badge bg-success">نشط</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-3">
+                            <form action="{{ url_for('toggle_exclude_teacher', id=teacher.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm {% if teacher.is_excluded %}btn-outline-success{% else %}btn-outline-danger{% endif %}">
+                                    {% if teacher.is_excluded %}
+                                    تفعيل
+                                    {% else %}
+                                    استبعاد
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <h5>لا يوجد معلمين مسجلين.</h5>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

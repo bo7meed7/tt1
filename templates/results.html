@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('find_substitute') }}" class="btn btn-outline-secondary">
+        &rarr; رجوع
+    </a>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="card-title fw-bold text-primary mb-3">تفاصيل الحصة المطلوب تغطيتها</h5>
+        <p class="card-text fs-5">
+            <strong>المعلم الغائب:</strong> {{ original_teacher.name }}<br>
+            <strong>المادة:</strong> {{ original_teacher.subject }}<br>
+            <strong>التوقيت:</strong> {{ day }} - الحصة {{ period }}
+        </p>
+    </div>
+</div>
+
+<h4 class="mb-3 fw-bold">المعلمون المتاحون</h4>
+
+{% if candidates %}
+<div class="list-group shadow-sm">
+    {% for candidate in candidates %}
+    {% set teacher = candidate.teacher %}
+    <div class="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center p-3 gap-3">
+        <div>
+            <h5 class="mb-1 fw-bold">{{ teacher.name }}</h5>
+            <small class="text-muted fs-6">
+                {{ teacher.subject }} 
+                <span class="mx-2">|</span> 
+                <span class="badge bg-info text-dark">حصص اليوم: {{ candidate.daily_load }}</span>
+                <span class="badge bg-light text-dark border">المجموع الأسبوعي: {{ candidate.weekly_load }}</span>
+            </small>
+        </div>
+        <form action="{{ url_for('assign_substitute') }}" method="POST" class="w-100 w-sm-auto">
+            <input type="hidden" name="original_teacher_id" value="{{ original_teacher.id }}">
+            <input type="hidden" name="covering_teacher_id" value="{{ teacher.id }}">
+            <input type="hidden" name="day" value="{{ day }}">
+            <input type="hidden" name="period" value="{{ period }}">
+            <button type="submit" class="btn btn-success btn-lg w-100">تأكيد التغطية</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-warning text-center p-4">
+    <h5 class="mb-0">لا يوجد معلمون متاحون في هذا الوقت.</h5>
+</div>
+{% endif %}
+{% endblock %}

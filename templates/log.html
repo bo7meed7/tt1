@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-primary">سجل المناوبات</h2>
+    <a href="{{ url_for('find_substitute') }}" class="btn btn-primary btn-sm">
+        + إضافة مناوبة
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="py-3 px-3">تاريخ التسجيل</th>
+                        <th class="py-3 px-3">اليوم والحصة</th>
+                        <th class="py-3 px-3">المعلم الأصلي</th>
+                        <th class="py-3 px-3">المعلم المناوب</th>
+                        <th class="py-3 px-3">إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in substitutions %}
+                    <tr>
+                        <td class="px-3 text-nowrap">{{ sub.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="px-3 text-nowrap">
+                            <span class="badge bg-info text-dark">{{ sub.day_of_week }}</span>
+                            <span class="badge bg-secondary">الحصة {{ sub.period_number }}</span>
+                        </td>
+                        <td class="px-3 fw-bold text-danger">{{ sub.original_teacher.name }}</td>
+                        <td class="px-3">
+                            <div class="fw-bold text-success">{{ sub.covering_teacher.name }}</div>
+                            <small class="text-muted">{{ sub.covering_teacher.subject }}</small>
+                        </td>
+                        <td class="px-3">
+                            <form action="{{ url_for('delete_log', id=sub.id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من الحذف؟');">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">حذف</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <h5>لا توجد مناوبات مسجلة حتى الآن.</h5>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

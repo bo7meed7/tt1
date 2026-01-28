@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card shadow-sm mb-4">
+  <div class="card-body text-center py-5">
+    <h1 class="display-6 mb-3 fw-bold text-primary">نظام إدارة الاحتياط</h1>
+    <p class="lead text-muted mb-4">إدارة وتوزيع حصص الاحتياط المدرسية بسهولة</p>
+    <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+        <a href="{{ url_for('find_substitute') }}" class="btn btn-primary btn-lg-custom px-5 shadow-sm">
+          تحديد حصة تحتاج تغطية
+        </a>
+        <a href="{{ url_for('log') }}" class="btn btn-outline-secondary btn-lg-custom px-5">
+          سجل المناوبات
+        </a>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-light">
+    <h5 class="mb-0 fw-bold">رفع الجدول الدراسي</h5>
+  </div>
+  <div class="card-body">
+    <p class="card-text text-muted">قم برفع ملف الجدول المدرسي (Excel) لتحديث بيانات المعلمين والحصص.</p>
+    <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label for="file" class="form-label fw-bold">اختر ملف الجدول (.xlsx, .xlsm)</label>
+        <input class="form-control form-control-lg" type="file" id="file" name="file" accept=".xlsx, .xlsm" required>
+      </div>
+      <button type="submit" class="btn btn-success btn-lg w-100 w-sm-auto">
+        رفع وتحديث الجدول
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
