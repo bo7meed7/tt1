@@ -14,14 +14,16 @@ DAYS_MAP = {
 
 PERIODS = [1, 2, 3, 4, 5, 6, 7]
 
-def parse_timetable(file_path):
+def parse_timetable(file_path, user_id):
     """
-    Parses the Excel file and populates the database.
-    Assumes specific column headers or structure.
+    Parses the Excel file and populates the database for a specific user.
     """
     try:
+        # ... (Excel parsing logic remains same until DB operations)
+        
         # Load the Excel file to get all sheet names
         xl = pd.ExcelFile(file_path)
+
         
         target_sheet = None
         header_row_index = None
@@ -175,21 +177,14 @@ def parse_timetable(file_path):
         periods_count_col = next((c for c in df.columns if 'عدد الحصص' in c), None)
         
         if not teacher_col:
-            # Should be found because we searched for it, but just in case
             raise ValueError(f"Found header row but could not identify 'اسم المدرس' column. Columns found: {list(df.columns)}")
 
-        # Clear existing data? Or update?
-        # For simplicity in this requirement ("Upload an Excel... create/update"), 
-        # we might want to wipe old data or update carefully.
-        # Let's wipe for now to ensure clean state as per "Upload... timetable" usually implies a reset or full update.
-        # But if we want to support updates, we should check existence.
-        # The prompt says "Select a specific lesson...".
-        # Let's clear all teachers and slots to avoid duplicates for this prototype.
-        Slot.query.delete()
-        Teacher.query.delete()
+        # Clear existing data for THIS USER only
+        teachers_to_delete = Teacher.query.filter_by(user_id=user_id).all()
+        for t in teachers_to_delete:
+            db.session.delete(t)
         
-        teachers_to_add = []
-        slots_to_add = []
+        db.session.commit() # Commit deletion first
         
         for index, row in df.iterrows():
             teacher_name = row[teacher_col]
@@ -199,8 +194,13 @@ def parse_timetable(file_path):
             subject = row[subject_col] if subject_col and not pd.isna(row[subject_col]) else "Unknown"
             total_periods = row[periods_count_col] if periods_count_col and not pd.isna(row[periods_count_col]) else 0
             
-            # Create Teacher
-            teacher = Teacher(name=str(teacher_name).strip(), subject=str(subject).strip(), total_periods=int(total_periods) if str(total_periods).isdigit() else 0)
+            # Create Teacher linked to User
+            teacher = Teacher(
+                name=str(teacher_name).strip(), 
+                subject=str(subject).strip(), 
+                total_periods=int(total_periods) if str(total_periods).isdigit() else 0,
+                user_id=user_id
+            )
             db.session.add(teacher)
             db.session.flush() # Get ID
             

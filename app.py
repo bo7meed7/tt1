@@ -1,7 +1,9 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
-from models import db, Teacher, Slot, Substitution
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from models import db, Teacher, Slot, Substitution, User
 from utils import parse_timetable
 
 app = Flask(__name__)
@@ -16,6 +18,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
+login_manager = LoginManager()
+login_manager.login_view = 'login'
+login_manager.init_app(app)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
 db.init_app(app)
 
 # Ensure upload directory exists
@@ -26,9 +36,52 @@ with app.app_context():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    if current_user.is_authenticated:
+        return render_template('index.html')
+    return redirect(url_for('login'))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if User.query.filter_by(username=username).first():
+            flash('اسم المستخدم موجود مسبقاً', 'danger')
+            return redirect(url_for('register'))
+        
+        new_user = User(username=username, password=generate_password_hash(password))
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash('تم إنشاء الحساب بنجاح! الرجاء تسجيل الدخول', 'success')
+        return redirect(url_for('login'))
+        
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            return redirect(url_for('index'))
+        else:
+            flash('خطأ في اسم المستخدم أو كلمة المرور', 'danger')
+            
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
 @app.route('/upload', methods=['POST'])
+@login_required
 def upload_file():
     if 'file' not in request.files:
         flash('No file part')
@@ -44,7 +97,7 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        success, message = parse_timetable(filepath)
+        success, message = parse_timetable(filepath, current_user.id)
         if success:
             flash('Timetable uploaded and processed successfully!', 'success')
         else:
@@ -55,11 +108,12 @@ def upload_file():
         return redirect(url_for('index'))
 
 @app.route('/find', methods=['GET', 'POST'])
+@login_required
 def find_substitute():
     # Get lists for dropdowns
-    teachers = Teacher.query.order_by(Teacher.name).all()
+    teachers = Teacher.query.filter_by(user_id=current_user.id).order_by(Teacher.name).all()
     # Unique days
-    days = db.session.query(Slot.day_of_week).distinct().all()
+    days = db.session.query(Slot.day_of_week).join(Teacher).filter(Teacher.user_id == current_user.id).distinct().all()
     days = [d[0] for d in days if d[0]] # Flatten
     
     # Sort days if possible (custom sort order)
@@ -79,6 +133,10 @@ def find_substitute():
         
         period = int(period)
         original_teacher = Teacher.query.get(teacher_id)
+        
+        if original_teacher.user_id != current_user.id:
+            flash('Unauthorized', 'danger')
+            return redirect(url_for('find_substitute'))
         
         # Verify original teacher has a lesson
         original_slot = Slot.query.filter_by(
@@ -101,10 +159,11 @@ def find_substitute():
         # Find available teachers
         # Logic: Teachers who have a slot at this time AND has_lesson is False
         
-        available_slots = Slot.query.filter_by(
-            day_of_week=day,
-            period_number=period,
-            has_lesson=False
+        available_slots = Slot.query.join(Teacher).filter(
+            Teacher.user_id == current_user.id,
+            Slot.day_of_week == day,
+            Slot.period_number == period,
+            Slot.has_lesson == False
         ).all()
         
         candidates = []
@@ -150,9 +209,17 @@ def find_substitute():
     return render_template('find.html', teachers=teachers, days=days, periods=periods)
 
 @app.route('/assign', methods=['POST'])
+@login_required
 def assign_substitute():
     original_teacher_id = request.form.get('original_teacher_id')
     covering_teacher_id = request.form.get('covering_teacher_id')
+    
+    ot = Teacher.query.get(original_teacher_id)
+    ct = Teacher.query.get(covering_teacher_id)
+    if not ot or ot.user_id != current_user.id or not ct or ct.user_id != current_user.id:
+        flash('Unauthorized', 'danger')
+        return redirect(url_for('find_substitute'))
+
     day = request.form.get('day')
     period = request.form.get('period')
     
@@ -169,17 +236,144 @@ def assign_substitute():
     return redirect(url_for('log'))
 
 @app.route('/log')
+@login_required
 def log():
-    substitutions = Substitution.query.order_by(Substitution.created_at.desc()).all()
+    substitutions = Substitution.query.join(Teacher, Substitution.original_teacher_id == Teacher.id)\
+        .filter(Teacher.user_id == current_user.id)\
+        .order_by(Substitution.created_at.desc()).all()
     return render_template('log.html', substitutions=substitutions)
 
 @app.route('/delete_log/<int:id>', methods=['POST'])
+@login_required
 def delete_log(id):
     sub = Substitution.query.get_or_404(id)
+    if sub.original_teacher.user_id != current_user.id:
+        flash('Unauthorized', 'danger')
+        return redirect(url_for('log'))
     db.session.delete(sub)
     db.session.commit()
     flash('تم حذف المناوبة بنجاح', 'success')
     return redirect(url_for('log'))
+
+@app.route('/manage_teachers')
+@login_required
+def manage_teachers():
+    teachers = Teacher.query.filter_by(user_id=current_user.id).order_by(Teacher.name).all()
+    return render_template('manage_teachers.html', teachers=teachers)
+
+@app.route('/teachers/add', methods=['POST'])
+@login_required
+def add_teacher():
+    name = request.form.get('name')
+    subject = request.form.get('subject')
+    
+    if name:
+        teacher = Teacher(name=name, subject=subject, user_id=current_user.id)
+        db.session.add(teacher)
+        db.session.commit()
+        flash('تم إضافة المعلم بنجاح', 'success')
+    
+    return redirect(url_for('manage_teachers'))
+
+@app.route('/teachers/toggle_exclude/<int:id>', methods=['POST'])
+@login_required
+def toggle_exclude_teacher(id):
+    teacher = Teacher.query.get_or_404(id)
+    if teacher.user_id != current_user.id:
+        flash('Unauthorized', 'danger')
+        return redirect(url_for('manage_teachers'))
+        
+    # Check if is_excluded exists (it should if models updated)
+    if not hasattr(teacher, 'is_excluded'):
+        # Fallback if migration not done properly, though we updated models.py
+        pass 
+    else:
+        teacher.is_excluded = not teacher.is_excluded
+        db.session.commit()
+        status = "استبعاد" if teacher.is_excluded else "تضمين"
+        flash(f'تم {status} المعلم {teacher.name} بنجاح', 'success')
+        
+    return redirect(url_for('manage_teachers'))
+
+@app.route('/manage_teachers')
+@login_required
+def manage_teachers():
+    teachers = Teacher.query.filter_by(user_id=current_user.id).order_by(Teacher.name).all()
+    return render_template('manage_teachers.html', teachers=teachers)
+
+@app.route('/teachers/add', methods=['POST'])
+@login_required
+def add_teacher():
+    name = request.form.get('name')
+    subject = request.form.get('subject')
+    
+    if name:
+        teacher = Teacher(name=name, subject=subject, user_id=current_user.id)
+        db.session.add(teacher)
+        db.session.commit()
+        flash('تم إضافة المعلم بنجاح', 'success')
+    
+    return redirect(url_for('manage_teachers'))
+
+@app.route('/teachers/toggle_exclude/<int:id>', methods=['POST'])
+@login_required
+def toggle_exclude_teacher(id):
+    teacher = Teacher.query.get_or_404(id)
+    if teacher.user_id != current_user.id:
+        flash('Unauthorized', 'danger')
+        return redirect(url_for('manage_teachers'))
+        
+    # Check if is_excluded exists (it should if models updated)
+    if not hasattr(teacher, 'is_excluded'):
+        # Fallback if migration not done properly, though we updated models.py
+        pass 
+    else:
+        teacher.is_excluded = not teacher.is_excluded
+        db.session.commit()
+        status = "استبعاد" if teacher.is_excluded else "تضمين"
+        flash(f'تم {status} المعلم {teacher.name} بنجاح', 'success')
+        
+    return redirect(url_for('manage_teachers'))
+
+@app.route('/manage_teachers')
+@login_required
+def manage_teachers():
+    teachers = Teacher.query.filter_by(user_id=current_user.id).order_by(Teacher.name).all()
+    return render_template('manage_teachers.html', teachers=teachers)
+
+@app.route('/teachers/add', methods=['POST'])
+@login_required
+def add_teacher():
+    name = request.form.get('name')
+    subject = request.form.get('subject')
+    
+    if name:
+        teacher = Teacher(name=name, subject=subject, user_id=current_user.id)
+        db.session.add(teacher)
+        db.session.commit()
+        flash('تم إضافة المعلم بنجاح', 'success')
+    
+    return redirect(url_for('manage_teachers'))
+
+@app.route('/teachers/toggle_exclude/<int:id>', methods=['POST'])
+@login_required
+def toggle_exclude_teacher(id):
+    teacher = Teacher.query.get_or_404(id)
+    if teacher.user_id != current_user.id:
+        flash('Unauthorized', 'danger')
+        return redirect(url_for('manage_teachers'))
+        
+    # Check if is_excluded exists (it should if models updated)
+    if not hasattr(teacher, 'is_excluded'):
+        # Fallback if migration not done properly, though we updated models.py
+        pass 
+    else:
+        teacher.is_excluded = not teacher.is_excluded
+        db.session.commit()
+        status = "استبعاد" if teacher.is_excluded else "تضمين"
+        flash(f'تم {status} المعلم {teacher.name} بنجاح', 'success')
+        
+    return redirect(url_for('manage_teachers'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
