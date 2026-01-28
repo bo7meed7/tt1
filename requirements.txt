@@ -1,5 +1,6 @@
 Flask-Login==0.6.3
-Werkzeug==3.0.1Flask==3.0.0
+Werkzeug==3.0.1
+Flask==3.0.0
 Flask-SQLAlchemy==3.1.1
 pandas==2.1.4
 openpyxl==3.1.2
