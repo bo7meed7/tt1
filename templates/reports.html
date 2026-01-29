@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+    <h2 class="fw-bold text-primary">التقارير والطباعة</h2>
+    <button onclick="window.print()" class="btn btn-success">
+        🖨️ طباعة
+    </button>
+</div>
+
+<div class="card mb-4 d-print-none">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-auto">
+                <label class="form-label">نوع التقرير</label>
+                <select name="type" class="form-select" id="reportType" onchange="updateInputType()">
+                    <option value="day" {% if filter_type == 'day' %}selected{% endif %}>يومي</option>
+                    <option value="month" {% if filter_type == 'month' %}selected{% endif %}>شهري</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label">التاريخ</label>
+                <input type="date" name="date" class="form-control" id="dateInput" value="{{ date_str }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">عرض</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="print-header d-none d-print-block text-center mb-4">
+    <h3>تقرير المناوبات - {{ filter_type == 'day' and 'يومي' or 'شهري' }}</h3>
+    <p>التاريخ: {{ date_str or 'اليوم' }}</p>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>اليوم</th>
+                <th>الحصة</th>
+                <th>المعلم الأصلي</th>
+                <th>المعلم البديل</th>
+                <th>التاريخ</th>
+                <th class="signature-col">توقيع المعلم البديل</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sub in substitutions %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ sub.day_of_week }}</td>
+                <td>{{ sub.period_number }}</td>
+                <td>{{ sub.original_teacher.name }}</td>
+                <td>{{ sub.covering_teacher.name }}</td>
+                <td>{{ sub.created_at.strftime('%Y-%m-%d') }}</td>
+                <td class="signature-col"></td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center">لا توجد مناوبات مسجلة في هذا التاريخ</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function updateInputType() {
+        const type = document.getElementById('reportType').value;
+        const input = document.getElementById('dateInput');
+        if (type === 'month') {
+            input.type = 'month';
+        } else {
+            input.type = 'date';
+        }
+    }
+    // Init on load
+    updateInputType();
+</script>
+
+<style>
+    @media print {
+        .d-print-none { display: none !important; }
+        .d-print-block { display: block !important; }
+        .card { border: none; shadow: none; }
+        body { background-color: white; }
+        .signature-col { width: 150px; height: 50px; }
+    }
+</style>
+{% endblock %}

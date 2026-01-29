@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from models import db, Teacher, Slot, Substitution, User
 from utils import parse_timetable
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-secret')
@@ -191,14 +192,21 @@ def find_substitute():
                 has_lesson=True
             ).count()
             
+            # Count substitutions taken by this teacher
+            subs_taken = Substitution.query.filter_by(covering_teacher_id=teacher.id).count()
+            
             candidates.append({
                 'teacher': teacher,
                 'daily_load': daily_load,
-                'weekly_load': total_weekly_lessons
+                'weekly_load': total_weekly_lessons,
+                'subs_taken': subs_taken,
+                'quota': teacher.substitution_quota
             })
             
         # 3. Sort by weekly load first, then daily load
         # User requested "business" (load) calculation based on all the week.
+        # Maybe we should sort by 'subs_taken' first? Or keep existing logic?
+        # User didn't ask to change sort, just add counter.
         candidates.sort(key=lambda x: (x['weekly_load'], x['daily_load']))
         
         # Extract teacher objects for compatibility, but maybe we want to pass the whole dict to show stats?
@@ -248,6 +256,47 @@ def log():
         .order_by(Substitution.created_at.desc()).all()
     return render_template('log.html', substitutions=substitutions)
 
+@app.route('/reports', methods=['GET'])
+@login_required
+def reports():
+    filter_type = request.args.get('type', 'day') # day or month
+    date_str = request.args.get('date')
+    
+    query = Substitution.query.join(Teacher, Substitution.original_teacher_id == Teacher.id)\
+        .filter(Teacher.user_id == current_user.id)
+    
+    if date_str:
+        if filter_type == 'day':
+            # date_str is YYYY-MM-DD
+            try:
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                # Filter by exact date
+                # SQLite doesn't have easy date extraction functions in all versions, 
+                # but we can filter by range or cast.
+                # Since created_at is datetime, we check date part.
+                # To be DB agnostic-ish:
+                next_day = date_obj + timedelta(days=1)
+                query = query.filter(Substitution.created_at >= date_obj, Substitution.created_at < next_day)
+            except ValueError:
+                pass
+        elif filter_type == 'month':
+            # date_str is YYYY-MM
+            try:
+                year, month = map(int, date_str.split('-'))
+                query = query.filter(db.extract('year', Substitution.created_at) == year,
+                                     db.extract('month', Substitution.created_at) == month)
+            except ValueError:
+                pass
+    else:
+        # Default to today if no date provided for day view
+        if filter_type == 'day':
+            today = datetime.now().date()
+            query = query.filter(Substitution.created_at >= datetime.combine(today, datetime.min.time()))
+
+    substitutions = query.order_by(Substitution.created_at.desc()).all()
+    
+    return render_template('reports.html', substitutions=substitutions, filter_type=filter_type, date_str=date_str)
+
 @app.route('/delete_log/<int:id>', methods=['POST'])
 @login_required
 def delete_log(id):
@@ -275,9 +324,15 @@ def manage_teachers():
 def add_teacher():
     name = request.form.get('name')
     subject = request.form.get('subject')
+    quota = request.form.get('quota', 0)
     
     if name:
-        teacher = Teacher(name=name, subject=subject, user_id=current_user.id)
+        teacher = Teacher(
+            name=name, 
+            subject=subject, 
+            user_id=current_user.id,
+            substitution_quota=int(quota) if quota else 0
+        )
         db.session.add(teacher)
         db.session.commit()
         flash('تم إضافة المعلم بنجاح', 'success')

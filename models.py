@@ -16,6 +16,8 @@ class Teacher(db.Model):
     name = db.Column(db.String(100), nullable=False)
     subject = db.Column(db.String(100))
     total_periods = db.Column(db.Integer, default=0)
+    substitution_quota = db.Column(db.Integer, default=0)
+    is_excluded = db.Column(db.Boolean, default=False)
     slots = db.relationship('Slot', backref='teacher', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -40,8 +42,8 @@ class Substitution(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships for easy access
-    original_teacher = db.relationship('Teacher', foreign_keys=[original_teacher_id])
-    covering_teacher = db.relationship('Teacher', foreign_keys=[covering_teacher_id])
+    original_teacher = db.relationship('Teacher', foreign_keys=[original_teacher_id], backref='substitutions_requested')
+    covering_teacher = db.relationship('Teacher', foreign_keys=[covering_teacher_id], backref='substitutions_covered')
 
     def __repr__(self):
         return f'<Substitution {self.day_of_week} P{self.period_number}>'

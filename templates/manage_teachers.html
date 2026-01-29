@@ -26,6 +26,10 @@
                         <label for="subject" class="form-label">المادة (اختياري)</label>
                         <input type="text" class="form-control" id="subject" name="subject">
                     </div>
+                    <div class="mb-3">
+                        <label for="quota" class="form-label">نصاب الاحتياط (اختياري)</label>
+                        <input type="number" class="form-control" id="quota" name="quota" value="0">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
@@ -45,6 +49,7 @@
                         <th class="py-3 px-3">اسم المعلم</th>
                         <th class="py-3 px-3">المادة</th>
                         <th class="py-3 px-3">نصاب الحصص</th>
+                        <th class="py-3 px-3">مناوبات (تم/نصاب)</th>
                         <th class="py-3 px-3">الحالة</th>
                         <th class="py-3 px-3">إجراءات</th>
                     </tr>
@@ -55,6 +60,9 @@
                         <td class="px-3 fw-bold">{{ teacher.name }}</td>
                         <td class="px-3">{{ teacher.subject or '-' }}</td>
                         <td class="px-3">{{ teacher.total_periods }}</td>
+                        <td class="px-3">
+                            {{ teacher.substitutions_covered|length }} / {{ teacher.substitution_quota }}
+                        </td>
                         <td class="px-3">
                             {% if teacher.is_excluded %}
                             <span class="badge bg-danger">مستبعد</span>
