@@ -46,12 +46,17 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        school_name = request.form.get('school_name')
         
         if User.query.filter_by(username=username).first():
             flash('اسم المستخدم موجود مسبقاً', 'danger')
             return redirect(url_for('register'))
         
-        new_user = User(username=username, password=generate_password_hash(password))
+        new_user = User(
+            username=username, 
+            password=generate_password_hash(password),
+            school_name=school_name
+        )
         db.session.add(new_user)
         db.session.commit()
         

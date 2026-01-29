@@ -41,7 +41,12 @@
   <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-success mb-4">
       <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('index') }}">إدارة الاحتياط</a>
+        <a class="navbar-brand" href="{{ url_for('index') }}">
+            إدارة الاحتياط
+            {% if current_user.is_authenticated and current_user.school_name %}
+            - {{ current_user.school_name }}
+            {% endif %}
+        </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
           <span class="navbar-toggler-icon"></span>
         </button>

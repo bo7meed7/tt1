@@ -7,6 +7,7 @@ db = SQLAlchemy()
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
+    school_name = db.Column(db.String(200))
     password = db.Column(db.String(150), nullable=False)
     teachers = db.relationship('Teacher', backref='owner', lazy=True, cascade="all, delete-orphan")
 
