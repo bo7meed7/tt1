@@ -17,7 +17,7 @@ for sheet in xl.sheet_names:
     df = pd.read_excel(latest_file, sheet_name=sheet, header=None, nrows=20)
     found = False
     for i, row in df.iterrows():
-        if any('اسم المدرس' in str(val) for val in row.values):
+        if any(('اسم المدرس' in str(val)) or ('اسم المعلم' in str(val)) for val in row.values):
             found = True
             break
-    print(f"Sheet '{sheet}': Contains 'اسم المدرس'? {found}")
+    print(f"Sheet '{sheet}': Contains teacher-name header? {found}")

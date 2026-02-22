@@ -18,11 +18,11 @@ try:
     print("\nFirst 10 rows:")
     print(df.head(10))
     
-    print("\nSearch for 'اسم المدرس':")
+    print("\nSearch for 'اسم المعلم' أو 'اسم المدرس':")
     for i, row in df.iterrows():
         row_str = " | ".join([str(x).strip() for x in row.values])
-        if 'اسم المدرس' in row_str:
-            print(f"Found 'اسم المدرس' in row {i}:")
+        if ('اسم المدرس' in row_str) or ('اسم المعلم' in row_str):
+            print(f"Found teacher-name header in row {i}:")
             print(row_str)
             
             # Check the row below for periods

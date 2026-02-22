@@ -36,7 +36,7 @@ def parse_timetable(file_path, user_id):
             # Search for header row
             for i, row in df_raw.iterrows():
                 row_values = [str(val).strip() for val in row.values]
-                if any('اسم المدرس' in val for val in row_values):
+                if any(('اسم المدرس' in val) or ('اسم المعلم' in val) for val in row_values):
                     header_row_index = i
                     target_sheet = sheet_name
                     break
@@ -45,7 +45,7 @@ def parse_timetable(file_path, user_id):
                 break
         
         if target_sheet is None:
-             raise ValueError("Could not find a row containing 'اسم المدرس' in any sheet. Please check the file format.")
+             raise ValueError("لم يتم العثور على صف يحتوي على 'اسم المعلم' (أو 'اسم المدرس') في أي ورقة. تأكد من صحة شكل الملف.")
 
         # Read the detected header row to check if it contains days
         df_header_check = pd.read_excel(file_path, sheet_name=target_sheet, header=header_row_index, nrows=0)
@@ -127,11 +127,11 @@ def parse_timetable(file_path, user_id):
                         if day_val.lower() == 'nan': day_val = ''
                         if period_val.lower() == 'nan': period_val = ''
                         
-                        # If the column is 'اسم المدرس' (Teacher Name), it might be in day_val, and period_val might be empty or vice versa
+                        # If the column is 'اسم المعلم' (أو 'اسم المدرس'), it might be in day_val, and period_val might be empty or vice versa
                         # We want to keep the meaningful label.
-                        if 'اسم المدرس' in day_val:
+                        if ('اسم المعلم' in day_val) or ('اسم المدرس' in day_val):
                             combined_headers.append(day_val)
-                        elif 'اسم المدرس' in period_val:
+                        elif ('اسم المعلم' in period_val) or ('اسم المدرس' in period_val):
                             combined_headers.append(period_val)
                         else:
                             combined_headers.append(f"{day_val} {period_val}".strip())
@@ -172,12 +172,12 @@ def parse_timetable(file_path, user_id):
         df.columns = new_columns
         
         # Find key columns
-        teacher_col = next((c for c in df.columns if 'اسم المدرس' in c), None)
+        teacher_col = next((c for c in df.columns if ('اسم المعلم' in c) or ('اسم المدرس' in c)), None)
         subject_col = next((c for c in df.columns if 'المادة' in c), None)
         periods_count_col = next((c for c in df.columns if 'عدد الحصص' in c), None)
         
         if not teacher_col:
-            raise ValueError(f"Found header row but could not identify 'اسم المدرس' column. Columns found: {list(df.columns)}")
+            raise ValueError(f"تم العثور على صف العناوين لكن لم يتم التعرف على عمود 'اسم المعلم'. الأعمدة الموجودة: {list(df.columns)}")
 
         # Clear existing data for THIS USER only
         teachers_to_delete = Teacher.query.filter_by(user_id=user_id).all()

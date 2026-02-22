@@ -22,10 +22,11 @@ try:
         
         for r_idx, row in df.iterrows():
             for c_idx, val in enumerate(row.values):
-                if 'اسم المدرس' in str(val):
+                text_val = str(val)
+                if ('اسم المدرس' in text_val) or ('اسم المعلم' in text_val):
                     header_row_index = r_idx
                     teacher_col_idx = c_idx
-                    print(f"Found 'اسم المدرس' at Row {r_idx}, Col {c_idx}")
+                    print(f"Found teacher-name header at Row {r_idx}, Col {c_idx}: {text_val}")
                     break
             if header_row_index is not None:
                 break
